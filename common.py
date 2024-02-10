@@ -1,11 +1,29 @@
 import random
 
 
+COMMON_TEXT = "В терминологии сетей TCP/IP маской сети называют двоичное число, "\
+    "которое показывает, какая часть IP-адреса узла сети относится к адресу сети, "\
+    "а какая - к адресу узла в этой сети. Адрес сети получается в результате "\
+    "применения поразрядной конъюнкции к заданному адресу узла и маске сети."
+
+N_MIN_IP_BITS = 3
+N_MAX_MASK_BITS = 4
+MIN_IP_NUM_DEV = 10
+IP_MASK_OFFSET_MAX = 2
+
+
 class Task:
     def __init__(self, text, a):
         self.body = text
         self.ans = a
 
+
+def clamp(v, v_min, v_max):
+    if v_min != None and v < v_min:
+        return v_min
+    elif v_max != None and v > v_max:
+        return v_max
+    return v
 
 """
 Function: list_replace
@@ -134,6 +152,25 @@ def generate_random_byte(n_mask_bits, n_offset, min_l=1):
     return net_byte, net_byte + l_val, l_zeroes + n_offset
 
 
+def generate_ip_net_addr(min_ip, min_mask_bits, min_ip_bits, min_offset):
+    n_mask_bits = random.randint(min_mask_bits, N_MAX_MASK_BITS)
+    n_offset = random.randint(min_offset, IP_MASK_OFFSET_MAX)
+    n_bits_avail = 8 - n_mask_bits - n_offset
+    if n_bits_avail < min_ip_bits:
+        n_offset -= min_ip_bits - n_bits_avail
+    
+    assert n_offset >= 0, f"Non-negative number expected, got: {n_offset}"
+
+    net_val, ip_val, true_offset = generate_random_byte(n_mask_bits, n_offset, min_ip)
+
+    ip_bytes = []
+    randomize_list(ip_bytes, 0, 254, 3, MIN_IP_NUM_DEV)
+    net_bytes = ip_bytes.copy()
+    ip_bytes.append(ip_val)
+    net_bytes.append(net_val)
+
+    return ip_bytes, net_bytes, n_mask_bits, true_offset
+
 """
 Function: test_func
 Description:
@@ -141,8 +178,8 @@ Tests a desired task generation function.
 @param tgt_func: desired task generation function(must return a Task object)
 """
 
-def test_func(tgt_func):
-    task = tgt_func()
+def test_func(tgt_func, *args):
+    task = tgt_func(*args)
     print(task.body)
     if input() == task.ans:
         print("Correct")

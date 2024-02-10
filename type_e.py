@@ -1,5 +1,6 @@
 import common
 import random
+from ipaddress import ip_network
 
 
 class Word:
@@ -56,9 +57,9 @@ class Operator:
         self.word_repr = w_rep
         self.misc_str = misc
 
-    def evaluate(self, op1_name, op2_name):
+    def get_eval_str(self, op1_name, op2_name):
         s_eval = op1_name + " " + self.str_rep + " " + op2_name + " " + self.misc_str
-        return eval(s_eval)
+        return s_eval
     
     def get_str(self, op1, op2, op1_name, op2_name):
         return op1.get_str(op1_name, self.op1_form) + " " + self.word_repr + " "\
@@ -74,8 +75,8 @@ class Expression:
         self.op1_name = op1_name
         self.op2_name = op2_name
 
-    def evaluate(self):
-        return self.operator.evaluate(self.op1_name, self.op2_name)
+    def get_eval_str(self):
+        return self.operator.get_eval_str(self.op1_name, self.op2_name)
     
     def get_str(self):
         return self.operator.get_str(self.op1, self.op2, self.op1_name, self.op2_name)
@@ -87,7 +88,7 @@ class ExpressionGenerator:
         self.space_char = s_char
         self.lang_data_path = f_path
         self.words = []
-        self.operands = {"num": Operand("C")}
+        self.operands = {"num": Operand("C"), "min": Operand("E"), "max": Operand("E")}
         # Some operands cannot be used in one operation. 
         # operand_restr dictionary defines what can be used with what.
         self.operand_restr = {}
@@ -97,10 +98,13 @@ class ExpressionGenerator:
         self.load_file()
 
     def get_random_expression(self):
-        operator = random.choice(self.operators)
-        op1_avail = self.get_operands_by_type(operator.op1_types)
-        op1 = random.choice(op1_avail)
-        op2_avail = self.get_operands_by_type(operator.op2_types, self.operand_restr[op1])
+        op1_avail, op2_avail = [], []
+        while len(op1_avail) * len(op2_avail) == 0:
+            # DEBUG
+            operator = self.operators[0]
+            op1_avail = self.get_operands_by_type(operator.op1_types)
+            op1 = random.choice(op1_avail)
+            op2_avail = self.get_operands_by_type(operator.op2_types, self.operand_restr[op1])
         print(op2_avail, self.operand_restr[op1], operator.op2_types)
         op2 = random.choice(op2_avail)
 
@@ -121,11 +125,8 @@ class ExpressionGenerator:
         f = open(self.lang_data_path, "r")
         f_lines = f.readlines()
         err = self.read_words_from_file(f_lines)
-        print(err)
         err = self.read_operands_from_file(f_lines)
-        print(err)
         err = self.read_operators_from_file(f_lines)
-        print(err)
         f.close()
 
     def read_words_from_file(self, f_lines):
@@ -181,9 +182,9 @@ class ExpressionGenerator:
             curr_words = curr_line.split()
             common.list_replace(curr_words, "X", "")
             common.replace_in_list_str(curr_words, self.space_char, " ")
-            if len(curr_words) == 2:
-                w_i = int(curr_words[-1]) - 1
-                tmp = Operand("V", self.words[w_i])
+            if len(curr_words) == 3:
+                w_i = int(curr_words[1]) - 1
+                tmp = Operand(curr_words[-1], self.words[w_i])
                 self.operands[curr_words[0]] = tmp
             elif len(curr_words) >= 3 and curr_words[0] == "r":
                 self.operand_restr[curr_words[1]] = curr_words[2:]
@@ -217,7 +218,82 @@ class ExpressionGenerator:
         return 0
 
 
-test_gen = ExpressionGenerator("expr_data.txt", "$")
-r_ex = test_gen.get_random_expression()
+def get_task_text(ip_addr, mask, misc_text):
+    ip_str = common.list2string(ip_addr)
+    mask_str = common.list2string(mask)
+    ip_s = f"Сеть задана адресом {ip_str} и маской {mask_str}."
 
-print(r_ex.get_str(), r_ex.op1_name, r_ex.op2_name)
+    return common.COMMON_TEXT + " " + ip_s + " " + misc_text
+
+
+def get_ip_statistics(ip):
+    n_zero_curr = ip.count("0")
+    n_zero_right_curr = ip[16:].count("0")
+    n_one_curr = ip.count("1")
+    n_one_right_curr = ip[16:].count("1")
+
+    return n_zero_curr, n_zero_right_curr, n_one_curr, n_one_right_curr
+
+
+def get_n_ips_by_condition(ip_str, n_ip_bits, expr):
+    n = 0
+    net = ip_network(ip_str + "/" + str(32 - n_ip_bits), strict=False)
+    for ip in net:
+        curr_bits = f"{ip:b}"
+        n_zeroes_total, n_zeroes_right, n_ones_total, n_ones_right = get_ip_statistics(curr_bits)
+        n_zeroes_left = n_zeroes_total - n_zeroes_right
+        n_ones_left = n_ones_total - n_ones_right
+        e_str = expr.get_eval_str()
+        if eval(e_str):
+            n += 1
+    return n
+
+
+def generate_type_e(e_generator):
+    r_ex = e_generator.get_random_expression()
+    n_ip_bits = random.randint(common.N_MIN_IP_BITS, 15)
+    mask_bytes = "1" * (16 - n_ip_bits) + "0" * n_ip_bits
+    mask_bytes = [255, 255, int(mask_bytes[:8], 2), int(mask_bytes[8:], 2)]
+    ip_bytes = []
+    common.randomize_list(ip_bytes, 0, 254, 2, common.MIN_IP_NUM_DEV)
+    #REWRITE
+    offset_3 = common.clamp(16 - n_ip_bits, 1, 8)
+    ip_byte_3 = random.randint(0, (1 << offset_3) - 2)
+    offset_4 = common.clamp(8 - n_ip_bits, 1, 8)
+    ip_byte_4 = random.randint(0, (1 << offset_4) - 2)
+    ip_bytes += [ip_byte_3, ip_byte_4]
+    ip_str = common.list2string(ip_bytes)
+
+    # Obtain the right answer
+    ans = -1
+    misc_txt = ""
+    if r_ex.op2.type in ["E", "C"]:
+        # obtain ranges of variables
+        n_zero_curr, n_zero_right_curr, n_one_curr, n_one_right_curr = get_ip_statistics(ip_bytes)
+        ranges = {"n_zeroes_total": [n_zero_curr - n_ip_bits, n_zero_curr], 
+                  "n_ones_total": [n_one_curr, n_one_curr + n_ip_bits],
+                  "n_zeroes_right": [n_zero_right_curr - n_ip_bits, n_zero_right_curr],
+                  "n_ones_right": [n_one_right_curr, n_one_right_curr + n_ip_bits]}
+        if r_ex.op2.type == "E":
+            i_map = {"min": 0, "max": 1}
+            n_map = {"min": "минимальное", "max": "максимальное"}
+            tgt_word = r_ex.op1.get_str(r_ex.op1_name, r_ex.operator.op1_form)
+            misc_txt = "Определите " + n_map[r_ex.op2_name] + " " + tgt_word + "."
+            ans = ranges[r_ex.op1_name][i_map[r_ex.op2_name]]
+        else:
+            l = common.clamp(ranges[r_ex.op1_name][0], 2, None)
+            r = common.clamp(ranges[r_ex.op1_name][1], l, None)
+            r_ex.op2_name = str(random.randint(l, r))
+    
+    if ans == -1:
+        misc_txt = "Сколько в этой сети IP-адресов, для которых " + r_ex.get_str() + "?"
+        ans = get_n_ips_by_condition(ip_str, n_ip_bits, r_ex)
+
+    task_text = get_task_text(ip_bytes, mask_bytes, misc_txt)
+
+    return common.Task(task_text, str(ans))
+
+
+if __name__ == "__main__":
+    test_gen = ExpressionGenerator("expr_data.txt", "$")
+    common.test_func(generate_type_e, test_gen)
