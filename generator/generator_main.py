@@ -1,6 +1,7 @@
 import type_b
 import type_d
 import type_e
+import common
 import os
 
 
@@ -20,7 +21,7 @@ tasks = {"B": type_b.generate_type_b,
          "E": type_e.generate_type_e}
 
 s = input()
-tgt = s.split()
+tgt = s.strip().split()
 
 expr_gen = None
 
@@ -37,6 +38,6 @@ for i in tgt:
     if tp in tasks:
         for j in range(n):
             if tp == "E":
-                print(tasks[tp](expr_gen, tokens))
+                print(tasks[tp](expr_gen, tokens), end=common.TASK_SEP)
             else:
-                print(tasks[tp](tokens))
+                print(tasks[tp](tokens), end=common.TASK_SEP)

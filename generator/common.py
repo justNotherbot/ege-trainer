@@ -10,15 +10,17 @@ N_MIN_IP_BITS = 3
 N_MAX_MASK_BITS = 4
 MIN_IP_NUM_DEV = 10
 IP_MASK_OFFSET_MAX = 2
+TASK_SEP = "<task>"
 
 
 class Task:
-    def __init__(self, text, a):
+    def __init__(self, text, a, sep=TASK_SEP):
         self.body = text
         self.ans = a
+        self.sep = sep
 
     def __str__(self):
-        return self.body + " " + self.ans
+        return self.body + self.sep + self.ans
 
 
 def clamp(v, v_min, v_max):
