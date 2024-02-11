@@ -115,15 +115,15 @@ class TaskGenerator:
 
         if self.u_id in self.stats_mngr.stats_by_user:
             ls = self.stats_mngr.stats_by_user[self.u_id]
-            initial = ls[0] / ls[1]
+            initial = 1 - (ls[0] / ls[1])
             for i in range(0, len(ls), 2):
-                curr = ls[i] / ls[i+1]
+                curr = 1 - (ls[i] / ls[i+1])
                 coefficients.append(curr / initial)
-                c_sum += curr
+                c_sum += curr / initial
         else:
             coefficients = [1] * len(self.task_types)
             c_sum = len(self.task_types)
-
+        print(coefficients, c_sum)
         n_tasks_first = round(n_total / c_sum)
         for i in range(len(coefficients)):
             tasks_curr = int(round(n_tasks_first * coefficients[i]))
@@ -145,6 +145,7 @@ stats_manager.save_stats()
 curr_dir = os.path.dirname(os.path.realpath(__file__))  # Directory where this .py file is located
 tgt_dir = os.path.join(curr_dir, "generator", "generator_main.py")
 task_gen = TaskGenerator(tgt_dir, stats_manager, ["B", "D", "E"])
+task_gen.u_id = "cd"
 task_gen.generate_tasks(N_TASKS_PER_TEST)
-task_gen.show_tasks()
+#task_gen.show_tasks()
 #child = subprocess.Popen(['python', 'simple.py'], stdin=subprocess.PIPE)
