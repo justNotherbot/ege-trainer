@@ -17,7 +17,8 @@ N_STATS_WORDS_IN_LINE = 7
 N_TASKS_PER_TEST = 15
 
 WRONG_CMD_MSG = "Неверный формат команды"
-INVALID_LOGIN_MSG = "Невозможно сменить пользователя. Используйте logout."
+INVALID_LOGIN_MSG = "Невозможно сменить пользователя. Используйте logout, "\
+                    "или введите корректное имя пользователя."
 
 
 class StatisticsManager:
@@ -116,10 +117,13 @@ class TaskGenerator:
         for i in range(len(self.tasks)):
             print(str(i+1)+".")
             print(self.tasks[i][0])
+            # DEBUG
+            print(self.tasks[i][1])
         
         self.time_start = time.time()
 
     def add_user_answer(self, task_num, ans):
+        print(task_num, ans)
         if 0 <= task_num < len(self.user_answers):
             self.user_answers[task_num] = ans
 
@@ -132,8 +136,10 @@ class TaskGenerator:
         for i in range(len(self.user_answers)):
             is_correct = self.tasks[i][1] == self.user_answers[i]
             if not is_correct:
-                out.append("Задание " + str(i+1) + f": Ваш ответ: {self.user_answers[i]}. \
-                           Правильный ответ: {self.tasks[i][1]}")
+                your_ans = ""
+                if len(self.user_answers[i]):
+                    your_ans = f"Ваш ответ: {self.user_answers[i]}. "
+                out.append("Задание " + str(i+1) + ": " + your_ans + f"Правильный ответ: {self.tasks[i][1]}")
             n_correct += is_correct
 
             if self.u_id in self.stats_mngr.stats_by_user:
@@ -146,7 +152,7 @@ class TaskGenerator:
         curr_time = time.time()
         print(f"Решено {n_correct} из {len(self.user_answers)}.")
         print(f"Потрачено {round((curr_time - self.time_start) / 60)} минут.")
-        print(*out)
+        print(*out, sep="\n")
 
     
     def get_task_distribution(self, n_total):
@@ -188,7 +194,7 @@ class ConsoleContext:
         self.task_gen = TaskGenerator(script_path, self.stats_manager, task_types)
 
     def setuid(self, u_id):
-        if self.u_id == "" or u_id == "":
+        if (self.u_id == "" and u_id in self.stats_manager.stats_by_user) or u_id == "":
             self.u_id = u_id
             self.task_gen.u_id = u_id
             return 0
@@ -247,7 +253,7 @@ def answer(console_context, args):
         print(WRONG_CMD_MSG)
         return
     
-    console_context.answer(int(args[0]), args[1])
+    console_context.answer(int(args[0])-1, args[1])
 
 
 def submit(console_context, args):
