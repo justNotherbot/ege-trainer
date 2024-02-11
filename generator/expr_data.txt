@@ -1,0 +1,44 @@
+i
+количество
+количества
+количеству
+количество
+количеством
+количестве
+
+i
+суммарное
+суммарного
+суммарному
+суммарное
+суммарным
+суммарном
+
+d 1 нулей$в$двоичной$записи$IP-адреса
+d 1 единиц$в$двоичной$записи$IP-адреса
+d 2$1 нулей$в$левых$двух$байтах
+d 2$1 единиц$в$левых$двух$байтах
+d 2$1 нулей$в$правых$двух$байтах
+d 2$1 единиц$в$правых$двух$байтах
+e_w
+
+n_zeroes_total 3 V
+n_ones_total 4 V
+n_zeroes_left 5 V
+n_ones_left 6 V
+n_zeroes_right 7 V
+n_ones_right 8 V
+
+r n_zeroes_total n_ones_total num min max
+r n_ones_total n_zeroes_total num min max
+r n_zeroes_left n_zeroes_right n_ones_right
+r n_ones_left n_zeroes_right n_ones_right
+r n_zeroes_right n_zeroes_left n_ones_left num min max
+r n_ones_right n_zeroes_left n_ones_left num min max
+e_od
+
+i_p d_p V C$E$V == равно X
+i_p r_p V C$V > больше X
+i_p r_p V C$V >= не$меньше X
+i_p d_p V C % кратно ==$0
+e_or
