@@ -81,16 +81,21 @@ class TaskGenerator:
     def generate_tasks(self, n_total):
         # Clear data from previous tests
         self.tasks = []
-        self.user_answers = []
+        self.user_answers = [""] * n_total
 
         # Get amounts of tasks per subtype
         task_distr = self.get_task_distribution(n_total)
         print(task_distr)
 
         # Get response from the target generation program
-        proc = subprocess.Popen(['python3', self.script_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        proc.communicate(task_distr.encode("utf-8"))
-        out = proc.communicate()[0]
+
+        out = None
+        try:
+            proc = subprocess.Popen(['python3', self.script_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc.communicate(task_distr.encode("utf-8"))
+            out = proc.communicate()[0]
+        except Exception:
+            return 1
         s_out = out.decode("utf-8").split("<task>")
         if len(s_out) - 1 != n_total * 2:
             return 1
@@ -106,6 +111,14 @@ class TaskGenerator:
         for i in range(len(self.tasks)):
             print(str(i+1)+".")
             print(self.tasks[i][0])
+
+    def add_user_answer(self, task_num, ans):
+        if 0 <= task_num < len(self.user_answers):
+            self.user_answers[task_num] = ans
+
+    def submit(self):
+        n_correct = 0
+        
 
     
     def get_task_distribution(self, n_total):
