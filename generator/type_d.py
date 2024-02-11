@@ -69,7 +69,7 @@ def get_min_max_val_task():
     
     txt_main, token = get_task_text(ip_bytes, net_bytes, misc)
 
-    return common.Task(txt_main, str(ans)), token
+    return common.Task(txt_main, str(ans), SUB_TYPE_CHAR), token
 
 
 def get_min_max_count_task():
@@ -110,7 +110,7 @@ def get_min_max_count_task():
             " в двоичной записи маски?"
     txt_main, token = get_task_text(ip_bytes, net_bytes, misc)
 
-    return common.Task(txt_main, str(ans)), token
+    return common.Task(txt_main, str(ans), SUB_TYPE_CHAR), token
 
 
 def get_n_variants_task():
@@ -120,7 +120,7 @@ def get_n_variants_task():
     misc = "Для скольких различных значений маски это возможно?"
     txt_main, token = get_task_text(ip_bytes, net_bytes, misc)
 
-    return common.Task(txt_main, str(ans)), token
+    return common.Task(txt_main, str(ans), SUB_TYPE_CHAR), token
 
 
 def get_two_devices_task():
@@ -158,7 +158,7 @@ def get_two_devices_task():
            f"Укажите наибольшее возможное значение {byte_options[ask_last]} байта маски сети."\
             " Ответ запишите в виде десятичного числа."
     
-    return common.Task(txt, str(ans)), token
+    return common.Task(txt, str(ans), SUB_TYPE_CHAR), token
 
 
 def generate_task():

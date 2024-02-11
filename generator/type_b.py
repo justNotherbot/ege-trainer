@@ -94,7 +94,7 @@ def generate_task():
     ip_mask = "IP-адрес: " + ip_str + "\n" + "Маска: "\
              + mask_str
     task_text = padding1 + ip_mask + "\n" + padding2 + "\n" + out_table.get_str()
-    return common.Task(task_text, "".join(c_ans)), token
+    return common.Task(task_text, "".join(c_ans), SUB_TYPE_CHAR), token
 
 
 def generate_type_b(tokens):

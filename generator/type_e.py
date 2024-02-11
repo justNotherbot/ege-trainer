@@ -328,7 +328,7 @@ def generate_type_e(e_generator, tokens):
 
     task_text = get_task_text(ip_str, mask_str, misc_txt)
 
-    return common.Task(task_text, str(ans))
+    return common.Task(task_text, str(ans), SUB_TYPE_CHAR)
 
 
 if __name__ == "__main__":

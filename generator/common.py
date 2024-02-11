@@ -14,13 +14,14 @@ TASK_SEP = "<task>"
 
 
 class Task:
-    def __init__(self, text, a, sep=TASK_SEP):
+    def __init__(self, text, ans, tp, sep=TASK_SEP):
         self.body = text
-        self.ans = a
+        self.ans = ans
+        self.type = tp
         self.sep = sep
 
     def __str__(self):
-        return self.body + self.sep + self.ans
+        return self.type + self.sep + self.body + self.sep + self.ans
 
 
 def clamp(v, v_min, v_max):
