@@ -3,6 +3,7 @@ import common
 
 
 SUB_TYPE_CHAR = "B"  # Used for generating tokens
+MIN_IP_BYTES_DEV = 10  # Used for generating IP
 
 
 class Table:
@@ -47,28 +48,26 @@ class Table:
 
 
 def generate_task():
-    n_bits_left = random.randint(-5, -1)
-    n_bits_right = random.randint(2, 4)
-    tgt = random.choice([n_bits_left, n_bits_right])
+    n_dev_bits = random.randint(2, 6)  # Number of device bits
+    mask_byte = int("1" * (8 - n_dev_bits) + "0" * n_dev_bits, 2)
+    gen_byte_1 = random.randint(1, (1 << (8 - n_dev_bits)) - 1) << n_dev_bits
+    gen_byte = random.randint(1, (1 << n_dev_bits) - 1) + gen_byte_1
 
-    mask_3, mask_4 = 255, 0  # Octet #3 and #4
-    if tgt == n_bits_left:
-        mask_3 -= int("1" * -tgt, 2)
-    else:
-        mask_4 += int("1" * tgt + "0" * (8 - tgt), 2)
-
+    mask_bytes = [255] * 3 + [mask_byte] 
     ip_bytes = []
+    common.randomize_list(ip_bytes, 1, 254, 3, MIN_IP_BYTES_DEV)
+    ip_bytes.append(gen_byte)
 
-    for i in range(4):
-        curr = random.randint(1, 256)
-        while curr in ip_bytes:
-            curr = random.randint(1, 256)
-        ip_bytes.append(curr)
+    use_third = random.choice([True, False])
 
-    ans_3, ans_4 = ip_bytes[-2] & mask_3, ip_bytes[-1] & mask_4
+    if use_third:
+        ip_bytes[2], ip_bytes[3] = ip_bytes[3], ip_bytes[2]
+        mask_bytes[2], mask_bytes[3] = mask_bytes[3], 0
+
+    ans_3, ans_4 = ip_bytes[2] & mask_bytes[2], ip_bytes[3] & mask_bytes[3]
 
     ans = [ans_3, ans_4, ip_bytes[0], ip_bytes[1]]
-    common.randomize_list(ans, 1, 255, 4, 10)
+    common.randomize_list(ans, 1, 255, 4, MIN_IP_BYTES_DEV)
     c_ans = [""] * 4
 
     for i in range(len(ans)):
@@ -88,7 +87,7 @@ def generate_task():
                 "фрагмента - 4 элемента IP-адреса и запишите в нужном порядке " \
                 "соответствующие им буквы без точек."
     
-    ip_str, mask_str = common.list2string(ip_bytes), common.list2string([255, 255, mask_3, mask_4])
+    ip_str, mask_str = common.list2string(ip_bytes), common.list2string(mask_bytes)
     token = SUB_TYPE_CHAR + ip_str + "_" + mask_str
 
     ip_mask = "IP-адрес: " + ip_str + "\n" + "Маска: "\
