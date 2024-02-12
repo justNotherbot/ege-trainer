@@ -19,6 +19,9 @@ N_TASKS_PER_TEST = 15
 WRONG_CMD_MSG = "Неверный формат команды"
 INVALID_LOGIN_MSG = "Невозможно сменить пользователя. Используйте logout, "\
                     "или введите корректное имя пользователя."
+STATS_CORRUPT_MSG = "При чтении файла stats.txt возникла ошибка. Этот файл " \
+                    "будет пересохранён после завершения программы."
+TASK_GEN_ERR = "При генерации заданий возникла ошибка. "
 
 
 class StatisticsManager:
@@ -97,7 +100,9 @@ class TaskGenerator:
 
         out = None
         try:
-            proc = subprocess.Popen(['python3', self.script_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen(['python3', self.script_path], stdin=subprocess.PIPE, 
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            
             proc.communicate(task_distr.encode("utf-8"))
             out = proc.communicate()[0]
         except Exception:
@@ -188,10 +193,12 @@ class TaskGenerator:
 
 class ConsoleContext:
 
-    def __init__(self, script_path, stats_path, task_types):
+    def __init__(self, script_dir, script_name, stats_path, task_types):
         self.u_id = ""
+        self.script_dir = script_dir
+        self.script_path = os.path.join(script_dir, script_name)
         self.stats_manager = StatisticsManager(stats_path)
-        self.task_gen = TaskGenerator(script_path, self.stats_manager, task_types)
+        self.task_gen = TaskGenerator(self.script_path, self.stats_manager, task_types)
 
     def setuid(self, u_id):
         if (self.u_id == "" and u_id in self.stats_manager.stats_by_user) or u_id == "":
@@ -204,8 +211,9 @@ class ConsoleContext:
         self.stats_manager.add_user(u_id)
 
     def start_test(self):
-        self.task_gen.generate_tasks(N_TASKS_PER_TEST)
+        err = self.task_gen.generate_tasks(N_TASKS_PER_TEST)
         self.task_gen.show_tasks()
+        return err
 
     def answer(self, task_num, ans):
         self.task_gen.add_user_answer(task_num, ans)
@@ -245,7 +253,11 @@ def start_test(console_context, args):
         print(WRONG_CMD_MSG)
         return
     
-    console_context.start_test()
+    err = console_context.start_test()
+    if err:
+        s_add = f"Пожалуйста, убедитесь, что файлы в директории {console_context.script_dir}"\
+                 " не повреждены."
+        print(TASK_GEN_ERR + s_add)
 
 
 def answer(console_context, args):
@@ -284,8 +296,11 @@ command_map = {"login": login,
 
 if __name__ == "__main__":
     curr_dir = os.path.dirname(os.path.realpath(__file__))  # Directory where this .py file is located
-    tgt_dir = os.path.join(curr_dir, "generator", "generator_main.py")
-    c_context = ConsoleContext(tgt_dir, "stats.txt", ["B", "D", "E"])
+    tgt_dir = os.path.join(curr_dir, "generator")
+    c_context = ConsoleContext(tgt_dir, "generator_main.py", "stats.txt", ["B", "D", "E"])
+    
+    if c_context.stats_manager.err_code == ERR_STATS_CORRUPT:
+        print(STATS_CORRUPT_MSG)
 
     while True:
         s = input(c_context.u_id + ">")
