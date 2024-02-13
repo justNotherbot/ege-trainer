@@ -24,6 +24,11 @@ STATS_CORRUPT_MSG = "При чтении файла stats.txt возникла �
                     "будет пересохранён после завершения программы."
 DESC_CORRUPT_MSG = "Справка о командах не будет отображаться."
 TASK_GEN_MSG = "При генерации заданий возникла ошибка. "
+USER_EXISTS_MSG = "Ошибка: пользователь с данным именем уже существует."
+
+WELCOME_TEXT = "Генератор заданий типа №13 из ЕГЭ по информатике.\n"\
+               "Для получения справки о доступных командах, введите -h."
+LOGGED_OUT_TEXT = "Вы не вошли в систему. Войдите, чтобы полноценно пользоваться системой."
 
 
 class StatisticsManager:
@@ -33,17 +38,35 @@ class StatisticsManager:
         self.stats_by_user = {}  # Statistics that are used by the program
         self.useronly_by_user = {}  # Statistics that are stored, but not used for task generation
         self.stats_path = f_path
+        self.last_u_id = ""
 
         self.read_stats()
 
     def add_user(self, u_id):
-        self.stats_by_user[u_id] = [0] * (N_STATS_WORDS_IN_LINE - 1)
-        self.useronly_by_user[u_id] = [[], []]
+        if u_id not in self.stats_by_user:
+            self.stats_by_user[u_id] = [0] * (N_STATS_WORDS_IN_LINE - 1)
+            self.useronly_by_user[u_id] = [[], []]
+            return 0
+        return 1
 
     def add_useronly_stats(self, u_id, time_min, r_solved):
         if u_id in self.useronly_by_user:
             self.useronly_by_user[u_id][0].append(time_min)
             self.useronly_by_user[u_id][1].append(r_solved)
+
+    def get_main_user_stats(self, u_id, t_types):
+        stats_by_type = {}
+        if u_id in self.stats_by_user:
+            c = 0
+            stats = self.stats_by_user[u_id]
+            for i in range(0, len(stats), 2):
+                # Make sure we don't divide by 0:
+                v = 0
+                if stats[i+1] != 0:
+                    v = stats[i] / stats[i+1]
+                stats_by_type[t_types[c]] = v
+                c += 1
+        return stats_by_type
 
     def read_stats(self):
         f = None
@@ -95,6 +118,7 @@ class StatisticsManager:
             s = i + " " + main_helpers.list2string(self.stats_by_user[i]) + " " + s_add + "\n"
             f.write(s)
         
+        #f.write(self.u_id)
         f.close()
 
 
@@ -122,13 +146,12 @@ class TaskGenerator:
         # Get amounts of tasks per subtype
         task_distr = ""
         if t_distr != None:
-            gen_distr = False
             task_distr = t_distr
             self.save_stats = False
         if self.save_stats:
             task_distr = self.get_task_distribution(n_total)
         # DEBUG
-        print(task_distr)
+        #print(task_distr)
 
         # Get response from the target generation program
 
@@ -150,6 +173,8 @@ class TaskGenerator:
             self.tasks.append(tmp)
         
         random.shuffle(self.tasks)
+        self.has_started = True
+        self.time_start = time.time()
         return 0
     
     def show_tasks(self):
@@ -157,13 +182,12 @@ class TaskGenerator:
             print(str(i+1)+".")
             print(self.tasks[i][0])
             # DEBUG
-            print(self.tasks[i][1])
-        
-        self.time_start = time.time()
-        self.has_started = True
+            #print(self.tasks[i][1])
+
 
     def add_user_answer(self, task_num, ans):
-        print(task_num, ans)
+        # DEBUG
+        #print(task_num, ans)
         if 0 <= task_num < len(self.user_answers):
             self.user_answers[task_num] = ans
 
@@ -221,11 +245,12 @@ class TaskGenerator:
         else:
             coefficients = [1] * len(self.task_types)
             c_sum = len(self.task_types)
-        print(coefficients, c_sum)
+        # DEBUG
+        #print(coefficients, c_sum)
         n_tasks_first = round(n_total / c_sum)
         for i in range(len(coefficients)):
             tasks_curr = int(round(n_tasks_first * coefficients[i]))
-            if tasks_curr > n_total:
+            if tasks_curr > n_total or i == len(coefficients)-1:
                 tasks_curr = n_total
             task_amnt.append(tasks_curr)
             n_total -= tasks_curr
@@ -244,9 +269,11 @@ class ConsoleContext:
         self.script_dir = script_dir
         self.script_path = os.path.join(script_dir, script_name)
         self.stats_manager = StatisticsManager(stats_path)
+        self.task_types = task_types
         self.task_gen = TaskGenerator(self.script_path, self.stats_manager, task_types)
 
         self.qt_mngr = qt_mngr
+        self.show_logged_out = True
 
         data, n_rows, err = main_helpers.load_cmd_desc(desc_path)
         self.err_code = err
@@ -258,13 +285,15 @@ class ConsoleContext:
 
     def setuid(self, u_id):
         if (self.u_id == "" and u_id in self.stats_manager.stats_by_user) or u_id == "":
+            if u_id == "" and self.u_id != u_id:
+                self.show_logged_out = True
             self.u_id = u_id
             self.task_gen.u_id = u_id
             return 0
         return 1
 
     def createuid(self, u_id):
-        self.stats_manager.add_user(u_id)
+        return self.stats_manager.add_user(u_id)
 
     def start_test(self, n_tasks, gen_str):
         if not self.task_gen.has_started:
@@ -310,7 +339,9 @@ def create(console_context, args):
         print(WRONG_CMD_MSG)
         return
 
-    console_context.createuid(args[0])
+    err = console_context.createuid(args[0])
+    if err:
+        print(USER_EXISTS_MSG)
 
 
 def start_test(console_context, args):
@@ -352,6 +383,21 @@ def submit(console_context, args):
     console_context.submit()
 
 
+def stats(console_context, args):
+    if len(args) != 0:
+        print(WRONG_CMD_MSG)
+        return
+    
+    curr_u_id = console_context.u_id
+    task_types = console_context.task_types
+    stats_by_type = console_context.stats_manager.get_main_user_stats(curr_u_id, 
+                                                                      task_types)
+    if len(stats_by_type):
+        print("Процент правильно решённых задач по подтипам:")
+        for i in stats_by_type:
+            print(f"{i}: {round(stats_by_type[i] * 100)}%")
+
+
 def fini(console_context, args):
     if len(args) != 0:
         print(WRONG_CMD_MSG)
@@ -368,6 +414,7 @@ command_map = {"-h": help_cmd,
                "create": create,
                "start_test": start_test,
                "answer": answer,
+               "stats": stats,
                "submit": submit}
 
 
@@ -381,12 +428,18 @@ if __name__ == "__main__":
     c_context = ConsoleContext(generator_dir, "generator_main.py", cmd_desc_path, 
                                "stats.txt", ["B", "D", "E"], qt_manager)
     
+    print(WELCOME_TEXT)
+
     if c_context.stats_manager.err_code == ERR_STATS_CORRUPT:
         print(STATS_CORRUPT_MSG)
     if c_context.err_code:
         print(f"При чтении файла {cmd_desc_path} возникла ошибка."+DESC_CORRUPT_MSG)
 
     while True:
+        if c_context.show_logged_out:
+            print(LOGGED_OUT_TEXT)
+            c_context.show_logged_out = False
+
         s = input(c_context.u_id + ">")
         words = s.strip().split()
 
