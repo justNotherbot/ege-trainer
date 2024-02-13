@@ -3,6 +3,7 @@ import os
 import random
 import time
 import main_helpers
+import pyqt_helpers
 
 
 B_SOLVED_IDX = 0
@@ -21,7 +22,8 @@ INVALID_LOGIN_MSG = "Невозможно сменить пользовател�
                     "или введите корректное имя пользователя."
 STATS_CORRUPT_MSG = "При чтении файла stats.txt возникла ошибка. Этот файл " \
                     "будет пересохранён после завершения программы."
-TASK_GEN_ERR = "При генерации заданий возникла ошибка. "
+DESC_CORRUPT_MSG = "Справка о командах не будет отображаться."
+TASK_GEN_MSG = "При генерации заданий возникла ошибка. "
 
 
 class StatisticsManager:
@@ -193,12 +195,22 @@ class TaskGenerator:
 
 class ConsoleContext:
 
-    def __init__(self, script_dir, script_name, stats_path, task_types):
+    def __init__(self, script_dir, script_name, desc_path, stats_path, task_types, qt_mngr):
         self.u_id = ""
         self.script_dir = script_dir
         self.script_path = os.path.join(script_dir, script_name)
         self.stats_manager = StatisticsManager(stats_path)
         self.task_gen = TaskGenerator(self.script_path, self.stats_manager, task_types)
+
+        self.qt_mngr = qt_mngr
+
+        data, n_rows, err = main_helpers.load_cmd_desc(desc_path)
+        self.err_code = err
+        self.help_table = pyqt_helpers.Table(main_helpers.CMD_DESC_HDRS, n_rows, data)
+
+    def show_help(self):
+        if not self.err_code:
+            self.help_table.show(self.qt_mngr)
 
     def setuid(self, u_id):
         if (self.u_id == "" and u_id in self.stats_manager.stats_by_user) or u_id == "":
@@ -221,6 +233,13 @@ class ConsoleContext:
     def submit(self):
         self.task_gen.submit()
 
+
+def help_cmd(console_context, args):
+    if len(args) != 0:
+        print(WRONG_CMD_MSG)
+        return
+    
+    console_context.show_help()
 
 def login(console_context, args):
     if len(args) != 1 or args[0] == "":
@@ -257,7 +276,7 @@ def start_test(console_context, args):
     if err:
         s_add = f"Пожалуйста, убедитесь, что файлы в директории {console_context.script_dir}"\
                  " не повреждены."
-        print(TASK_GEN_ERR + s_add)
+        print(TASK_GEN_MSG + s_add)
 
 
 def answer(console_context, args):
@@ -285,7 +304,8 @@ def fini(console_context, args):
     exit()
 
 
-command_map = {"login": login,
+command_map = {"-h": help_cmd,
+               "login": login,
                "logout": logout,
                "exit": fini,
                "create": create,
@@ -296,11 +316,18 @@ command_map = {"login": login,
 
 if __name__ == "__main__":
     curr_dir = os.path.dirname(os.path.realpath(__file__))  # Directory where this .py file is located
-    tgt_dir = os.path.join(curr_dir, "generator")
-    c_context = ConsoleContext(tgt_dir, "generator_main.py", "stats.txt", ["B", "D", "E"])
+    generator_dir = os.path.join(curr_dir, "generator")
+    cmd_desc_path = os.path.join(curr_dir, "cmd_desc.txt")
+
+    qt_manager = pyqt_helpers.QTManager()
+
+    c_context = ConsoleContext(generator_dir, "generator_main.py", cmd_desc_path, 
+                               "stats.txt", ["B", "D", "E"], qt_manager)
     
     if c_context.stats_manager.err_code == ERR_STATS_CORRUPT:
         print(STATS_CORRUPT_MSG)
+    if c_context.err_code:
+        print(f"При чтении файла {cmd_desc_path} возникла ошибка."+DESC_CORRUPT_MSG)
 
     while True:
         s = input(c_context.u_id + ">")
