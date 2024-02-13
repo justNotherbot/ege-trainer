@@ -17,6 +17,17 @@ def list2string(ls, sep=" "):
     return out
 
 
+def check_task_string(t_s):
+    s_words = t_s.split()
+    total = 0
+    for i in s_words:
+        if len(i) > 1 and i[0].isalpha() and i[0].isupper() and i[1:].isnumeric():
+            total += int(i[1:])
+        else:
+            return 1, 0
+    return 0, total
+
+
 def add_to_table(to_add, table):
     for j in to_add.keys():
         if to_add[j] == "":

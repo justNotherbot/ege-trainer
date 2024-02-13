@@ -30,13 +30,20 @@ class StatisticsManager:
 
     def __init__(self, f_path):
         self.err_code = 0
-        self.stats_by_user = {}
+        self.stats_by_user = {}  # Statistics that are used by the program
+        self.useronly_by_user = {}  # Statistics that are stored, but not used for task generation
         self.stats_path = f_path
 
         self.read_stats()
 
     def add_user(self, u_id):
         self.stats_by_user[u_id] = [0] * (N_STATS_WORDS_IN_LINE - 1)
+        self.useronly_by_user[u_id] = [[], []]
+
+    def add_useronly_stats(self, u_id, time_min, r_solved):
+        if u_id in self.useronly_by_user:
+            self.useronly_by_user[u_id][0].append(time_min)
+            self.useronly_by_user[u_id][1].append(r_solved)
 
     def read_stats(self):
         f = None
@@ -48,15 +55,22 @@ class StatisticsManager:
         f_lines = f.readlines()
 
         tmp = {}
+        tmp_useronly = {}  # Statistics that aren't used by the program
         for i in f_lines:
             curr_words = i.split()
-            if len(curr_words) == N_STATS_WORDS_IN_LINE:
+            if len(curr_words) >= N_STATS_WORDS_IN_LINE and len(curr_words) % 2 == 1:
                 n_numeric = 0
                 for j in range(1, len(curr_words)):
-                    n_numeric += curr_words[j].isnumeric()
+                    curr_word = curr_words[j].replace(".", "0")
+                    n_numeric += curr_word.isnumeric()
                 
-                if n_numeric == N_STATS_WORDS_IN_LINE - 1:
-                    tmp[curr_words[0]] = list(map(int, curr_words[1:]))
+                n_crucial = N_STATS_WORDS_IN_LINE - 1
+                if n_numeric >= n_crucial and n_numeric == len(curr_words)-1:
+                    tmp[curr_words[0]] = list(map(int, curr_words[1:n_crucial+1]))
+                    tmp_useronly[curr_words[0]] = [[], []]
+                    for j in range(n_crucial+1, len(curr_words)):
+                        cnt = j - n_crucial-1
+                        tmp_useronly[curr_words[0]][cnt % 2].append(float(curr_words[j]))
                 else:
                     self.err_code = ERR_STATS_CORRUPT
                     f.close()
@@ -65,13 +79,20 @@ class StatisticsManager:
                 self.err_code = ERR_STATS_CORRUPT
                 f.close()
                 return
+        # DEBUG
+        print(tmp_useronly)
         self.stats_by_user = tmp
+        self.useronly_by_user = tmp_useronly
         f.close()
 
     def save_stats(self):
         f = open(self.stats_path, "w")
         for i in self.stats_by_user:
-            s = i + " " + main_helpers.list2string(self.stats_by_user[i]) + "\n"
+            s_add = ""
+            for j in range(len(self.useronly_by_user[i][0])):
+                s_add += str(round(self.useronly_by_user[i][0][j], 4)) + " " +\
+                      str(round(self.useronly_by_user[i][1][j], 4)) + " "
+            s = i + " " + main_helpers.list2string(self.stats_by_user[i]) + " " + s_add + "\n"
             f.write(s)
         
         f.close()
@@ -84,18 +105,29 @@ class TaskGenerator:
         self.stats_mngr = stats_mngr
         self.task_types = task_types
 
+        self.has_started = False  # True if the test has started. Otherwise, False. Will inhibit submission when False.
+        self.save_stats = True
         self.time_start = 0
         self.u_id = ""
         self.tasks = []
         self.user_answers = []
 
-    def generate_tasks(self, n_total):
+    def generate_tasks(self, n_total, t_distr=None):
+        if n_total == 0:
+            return 1
         # Clear data from previous tests
         self.tasks = []
         self.user_answers = [""] * n_total
 
         # Get amounts of tasks per subtype
-        task_distr = self.get_task_distribution(n_total)
+        task_distr = ""
+        if t_distr != None:
+            gen_distr = False
+            task_distr = t_distr
+            self.save_stats = False
+        if self.save_stats:
+            task_distr = self.get_task_distribution(n_total)
+        # DEBUG
         print(task_distr)
 
         # Get response from the target generation program
@@ -128,6 +160,7 @@ class TaskGenerator:
             print(self.tasks[i][1])
         
         self.time_start = time.time()
+        self.has_started = True
 
     def add_user_answer(self, task_num, ans):
         print(task_num, ans)
@@ -135,6 +168,9 @@ class TaskGenerator:
             self.user_answers[task_num] = ans
 
     def submit(self):
+        if not self.has_started:
+            return
+        
         n_correct = 0
         stats_per_type = {"B": B_SOLVED_IDX, "D": D_SOLVED_IDX, "E": E_SOLVED_IDX}
 
@@ -149,16 +185,24 @@ class TaskGenerator:
                 out.append("Задание " + str(i+1) + ": " + your_ans + f"Правильный ответ: {self.tasks[i][1]}")
             n_correct += is_correct
 
-            if self.u_id in self.stats_mngr.stats_by_user:
+            if self.save_stats and self.u_id in self.stats_mngr.stats_by_user:
                 task_type = self.tasks[i][2]
                 idx = stats_per_type[task_type]
 
                 self.stats_mngr.stats_by_user[self.u_id][idx] += is_correct
                 self.stats_mngr.stats_by_user[self.u_id][idx+1] += 1
 
+        # Reset some key variables
+        self.has_started = False
+        self.save_stats = True
+
         curr_time = time.time()
+        time_spent_min = (curr_time - self.time_start) / 60
+        # Save additional statistics:
+        self.stats_mngr.add_useronly_stats(self.u_id, time_spent_min, n_correct/len(self.user_answers))
+
         print(f"Решено {n_correct} из {len(self.user_answers)}.")
-        print(f"Потрачено {round((curr_time - self.time_start) / 60)} минут.")
+        print(f"Потрачено {round(time_spent_min)} минут.")
         print(*out, sep="\n")
 
     
@@ -222,10 +266,12 @@ class ConsoleContext:
     def createuid(self, u_id):
         self.stats_manager.add_user(u_id)
 
-    def start_test(self):
-        err = self.task_gen.generate_tasks(N_TASKS_PER_TEST)
-        self.task_gen.show_tasks()
-        return err
+    def start_test(self, n_tasks, gen_str):
+        if not self.task_gen.has_started:
+            err = self.task_gen.generate_tasks(n_tasks, gen_str)
+            self.task_gen.show_tasks()
+            return err
+        return 1
 
     def answer(self, task_num, ans):
         self.task_gen.add_user_answer(task_num, ans)
@@ -268,11 +314,22 @@ def create(console_context, args):
 
 
 def start_test(console_context, args):
-    if len(args) != 0:
+    if len(args) > 1:
         print(WRONG_CMD_MSG)
         return
+    s_gen = None
+    n_tasks = N_TASKS_PER_TEST
+
+    if len(args) == 1:
+        args[0] = args[0].replace("_", " ")
+        err, n = main_helpers.check_task_string(args[0])
+        if err:
+            print(WRONG_CMD_MSG)
+            return
+        n_tasks = n
+        s_gen = args[0]
     
-    err = console_context.start_test()
+    err = console_context.start_test(n_tasks, s_gen)
     if err:
         s_add = f"Пожалуйста, убедитесь, что файлы в директории {console_context.script_dir}"\
                  " не повреждены."
