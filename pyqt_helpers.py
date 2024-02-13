@@ -23,8 +23,6 @@ class TableView(QtWidgets.QTableWidget):
     def __init__(self, *args):
         super(QtWidgets.QTableWidget, self).__init__(*args)
 
-        #self.setData()
-
         self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         self.horizontalHeader().sectionResized.connect(self.resizeRowsToContents)
         self.verticalHeader().setVisible(False)
@@ -42,13 +40,18 @@ class TableView(QtWidgets.QTableWidget):
 
 class Table:
 
-    def __init__(self, headers, n_rows, default_el=""):
-        self.content = {}
+    def __init__(self, headers, n_rows, content=None, default_el=""):
+        self.content = {} if content == None else content
         self.headers = headers
         self.size = [n_rows, len(headers)]
 
-        for i in headers:
-            self.content[i] = [default_el] * n_rows
+        if content == None:
+            for i in headers:
+                self.content[i] = [default_el] * n_rows
+
+    def set_headers(self, headers):
+        self.headers = headers
+        self.size[1] = len(headers)
 
     def add_row(self, row):
         self.size[0] += 1

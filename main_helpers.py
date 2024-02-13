@@ -1,3 +1,5 @@
+CMD_DESC_HDRS = ["Название команды", "Аргументы", "Описание"]
+
 """
 Function: list2string
 @param ls: list
@@ -13,3 +15,58 @@ def list2string(ls, sep=" "):
         if i < len(ls) - 1:
             out += sep
     return out
+
+
+def add_to_table(to_add, table):
+    for j in to_add.keys():
+        if to_add[j] == "":
+            to_add[j] = "None"
+        
+        table[j].append(to_add[j])
+        to_add[j] = ""
+
+
+def load_cmd_desc(path, space_char="$"):
+    tmp_data = {"Название команды": "", "Аргументы": "", "Описание": ""}
+    data = {"Название команды": [], "Аргументы": [], "Описание": []}
+    n_rows = 0
+
+    f = None
+    try:
+        f = open(path, "r")
+    except Exception:
+        return {}, 0, 1
+    
+    f_lines = f.readlines()
+
+    for i in range(len(f_lines)):
+        c_line = f_lines[i].strip()
+
+        if len(c_line) == 0 or c_line[0] == "#":
+            continue
+
+        s_words = c_line.split()
+        if len(s_words) != 2:
+            return {}, 0, 1
+        if s_words[0] == "c":
+            if tmp_data["Название команды"] != "":
+                add_to_table(tmp_data, data)
+                n_rows += 1
+
+            tmp_data["Название команды"] = s_words[1]
+
+        elif s_words[0] == "a":
+            tmp_data["Аргументы"] += s_words[1].replace(space_char, " ") + " "
+        elif s_words[0] == "d":
+            tmp_data["Описание"] += s_words[1].replace(space_char, " ") + " "
+
+    if tmp_data["Название команды"] != "":
+        add_to_table(tmp_data, data)
+        n_rows += 1
+    
+    return data, n_rows, 0
+
+
+if __name__ == "__main__":
+    data, n_rows, err = load_cmd_desc("cmd_desc.txt")
+    print(data, err)
