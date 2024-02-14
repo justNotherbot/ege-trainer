@@ -2,6 +2,7 @@ import subprocess
 import os
 import random
 import time
+import statistics
 import main_helpers
 import pyqt_helpers
 
@@ -17,6 +18,8 @@ ERR_STATS_CORRUPT = 2
 N_STATS_WORDS_IN_LINE = 7
 N_TASKS_PER_TEST = 15
 
+N_STATS_ROUND_DIGITS = 4
+
 WRONG_CMD_MSG = "Неверный формат команды"
 INVALID_LOGIN_MSG = "Невозможно сменить пользователя. Используйте logout, "\
                     "или введите корректное имя пользователя."
@@ -29,6 +32,8 @@ USER_EXISTS_MSG = "Ошибка: пользователь с данным име
 WELCOME_TEXT = "Генератор заданий типа №13 из ЕГЭ по информатике.\n"\
                "Для получения справки о доступных командах, введите -h."
 LOGGED_OUT_TEXT = "Вы не вошли в систему. Войдите, чтобы полноценно пользоваться системой."
+
+STATS_TABLE_HEADERS = ["Название параметра", "Среднее", "Стандартное отклонение"]
 
 
 class StatisticsManager:
@@ -45,7 +50,9 @@ class StatisticsManager:
     def add_user(self, u_id):
         if u_id not in self.stats_by_user:
             self.stats_by_user[u_id] = [0] * (N_STATS_WORDS_IN_LINE - 1)
-            self.useronly_by_user[u_id] = [[], []]
+            # self.useronly_by_user[u_id][0] is time spent in minutes
+            # self.useronly_by_user[u_id][1] is the ratio of solved to all per test
+            self.useronly_by_user[u_id] = [[], []]  
             return 0
         return 1
 
@@ -67,6 +74,25 @@ class StatisticsManager:
                 stats_by_type[t_types[c]] = v
                 c += 1
         return stats_by_type
+    
+    def get_useronly_stats(self, u_id):
+        t_avg_min, t_std_dev_min = 0, 0
+        r_s_avg, r_s_std_dev = 0, 0
+
+        if u_id in self.useronly_by_user:
+            time_stats, solved_stats = self.useronly_by_user[u_id]
+            if len(time_stats):
+                t_avg_min = statistics.mean(time_stats)
+                if len(time_stats) >= 2:
+                    t_std_dev_min = statistics.stdev(time_stats)
+            
+            if len(solved_stats):
+                r_s_avg = statistics.mean(solved_stats)
+                if len(solved_stats) >= 2:
+                    r_s_std_dev = statistics.stdev(solved_stats)
+
+        return t_avg_min, t_std_dev_min, r_s_avg, r_s_std_dev
+        
 
     def read_stats(self):
         f = None
@@ -113,8 +139,10 @@ class StatisticsManager:
         for i in self.stats_by_user:
             s_add = ""
             for j in range(len(self.useronly_by_user[i][0])):
-                s_add += str(round(self.useronly_by_user[i][0][j], 4)) + " " +\
-                      str(round(self.useronly_by_user[i][1][j], 4)) + " "
+                s_add += str(round(self.useronly_by_user[i][0][j], \
+                                   N_STATS_ROUND_DIGITS)) + " " +\
+                      str(round(self.useronly_by_user[i][1][j], \
+                                N_STATS_ROUND_DIGITS)) + " "
             s = i + " " + main_helpers.list2string(self.stats_by_user[i]) + " " + s_add + "\n"
             f.write(s)
         
@@ -283,6 +311,23 @@ class ConsoleContext:
         if not self.err_code:
             self.help_table.show(self.qt_mngr)
 
+    def show_stats(self):
+        if self.u_id != "":
+            t_avg_min, t_std_dev_min, r_s_avg, r_s_std_dev = \
+                self.stats_manager.get_useronly_stats(self.u_id)
+
+            t_avg_str = str(round(t_avg_min, N_STATS_ROUND_DIGITS))
+            t_std_dev_str = str(round(t_std_dev_min, N_STATS_ROUND_DIGITS))
+            r_s_avg_str = str(round(r_s_avg * 100, N_STATS_ROUND_DIGITS))
+            r_s_std_dev_str = str(round(r_s_std_dev * 100, N_STATS_ROUND_DIGITS))
+
+            stats_table = pyqt_helpers.Table(STATS_TABLE_HEADERS, 0)
+            stats_table.add_row(["Время написания(минуты)", t_avg_str, t_std_dev_str])
+            stats_table.add_row(["Процент правильно решённных", r_s_avg_str, r_s_std_dev_str])
+
+            stats_table.show(self.qt_mngr)
+
+
     def setuid(self, u_id):
         if (self.u_id == "" and u_id in self.stats_manager.stats_by_user) or u_id == "":
             if u_id == "" and self.u_id != u_id:
@@ -396,6 +441,8 @@ def stats(console_context, args):
         print("Процент правильно решённых задач по подтипам:")
         for i in stats_by_type:
             print(f"{i}: {round(stats_by_type[i] * 100)}%")
+
+        console_context.show_stats()
 
 
 def fini(console_context, args):
