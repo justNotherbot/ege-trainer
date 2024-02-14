@@ -15,7 +15,7 @@ class QTManager:
 
 
 class RODelegate(QtWidgets.QStyledItemDelegate):
-    def createEditor(self, parent, option, index):
+    def create_editor(self, parent, option, index):
         return
 
 
