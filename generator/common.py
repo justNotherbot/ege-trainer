@@ -8,9 +8,11 @@ COMMON_TEXT = "В терминологии сетей TCP/IP маской сет
 
 N_MIN_IP_BITS = 3
 N_MAX_MASK_BITS = 4
-MIN_IP_NUM_DEV = 10
+MIN_IP_NUM_DEV = 10  # minimum deviation of currently generated random byte from previous
+# maximum number of bits by which the network bits 
+# of ip address can be offset from device bits
 IP_MASK_OFFSET_MAX = 2
-TASK_SEP = "<task>"
+TASK_SEP = "<task>"  # Separator, used when printing all Task objects via stdout
 
 
 class Task:
@@ -22,6 +24,16 @@ class Task:
 
     def __str__(self):
         return self.type + self.sep + self.body + self.sep + self.ans
+
+
+"""
+Function: clamp
+Description:
+Adjusts the variable value so that v_min <= v <= v_max
+@param v: current value
+@param v_min: minimum allowed value
+@param v_max: maximum allowed value
+"""
 
 
 def clamp(v, v_min, v_max):
