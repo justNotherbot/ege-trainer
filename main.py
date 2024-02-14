@@ -23,8 +23,7 @@ N_STATS_ROUND_DIGITS = 4
 WRONG_CMD_MSG = "Неверный формат команды"
 INVALID_LOGIN_MSG = "Невозможно сменить пользователя. Используйте logout, "\
                     "или введите корректное имя пользователя."
-STATS_CORRUPT_MSG = "При чтении файла stats.txt возникла ошибка. Этот файл " \
-                    "будет пересохранён после завершения программы."
+STATS_CORRUPT_MSG = "Этот файл будет пересохранён после завершения программы."
 DESC_CORRUPT_MSG = "Справка о командах не будет отображаться."
 TASK_GEN_MSG = "При генерации заданий возникла ошибка. "
 USER_EXISTS_MSG = "Ошибка: пользователь с данным именем уже существует."
@@ -59,7 +58,7 @@ class StatisticsManager:
     def add_useronly_stats(self, u_id, time_min, r_solved):
         if u_id in self.useronly_by_user:
             self.useronly_by_user[u_id][0].append(time_min)
-            self.useronly_by_user[u_id][1].append(r_solved)
+            self.useronly_by_user[u_id][1].append(r_solved * 100)
 
     def get_main_user_stats(self, u_id, t_types):
         stats_by_type = {}
@@ -71,7 +70,7 @@ class StatisticsManager:
                 v = 0
                 if stats[i+1] != 0:
                     v = stats[i] / stats[i+1]
-                stats_by_type[t_types[c]] = v
+                stats_by_type[t_types[c]] = [v, stats[i+1]]
                 c += 1
         return stats_by_type
     
@@ -119,6 +118,7 @@ class StatisticsManager:
                     tmp_useronly[curr_words[0]] = [[], []]
                     for j in range(n_crucial+1, len(curr_words)):
                         cnt = j - n_crucial-1
+
                         tmp_useronly[curr_words[0]][cnt % 2].append(float(curr_words[j]))
                 else:
                     self.err_code = ERR_STATS_CORRUPT
@@ -324,8 +324,8 @@ class ConsoleContext:
 
             t_avg_str = str(round(t_avg_min, N_STATS_ROUND_DIGITS))
             t_std_dev_str = str(round(t_std_dev_min, N_STATS_ROUND_DIGITS))
-            r_s_avg_str = str(round(r_s_avg * 100, N_STATS_ROUND_DIGITS))
-            r_s_std_dev_str = str(round(r_s_std_dev * 100, N_STATS_ROUND_DIGITS))
+            r_s_avg_str = str(round(r_s_avg, N_STATS_ROUND_DIGITS))
+            r_s_std_dev_str = str(round(r_s_std_dev, N_STATS_ROUND_DIGITS))
 
             stats_table = pyqt_helpers.Table(STATS_TABLE_HEADERS, 0)
             stats_table.add_row(["Время написания(минуты)", t_avg_str, t_std_dev_str])
@@ -447,7 +447,9 @@ def stats(console_context, args):
     if len(stats_by_type):
         print("Процент правильно решённых задач по подтипам:")
         for i in stats_by_type:
-            print(f"{i}: {round(stats_by_type[i] * 100)}%")
+            solved_percent = round(stats_by_type[i][0] * 100)
+            n_total = stats_by_type[i][1]
+            print(f"{i}: {solved_percent}%. Всего: {n_total}")
 
         console_context.show_stats()
 
@@ -476,16 +478,17 @@ if __name__ == "__main__":
     curr_dir = os.path.dirname(os.path.realpath(__file__))  # Directory where this .py file is located
     generator_dir = os.path.join(curr_dir, "generator")
     cmd_desc_path = os.path.join(curr_dir, "cmd_desc.txt")
+    stats_path = os.path.join(curr_dir, "stats.txt")
 
     qt_manager = pyqt_helpers.QTManager()
 
     c_context = ConsoleContext(generator_dir, "generator_main.py", cmd_desc_path, 
-                               "stats.txt", ["B", "D", "E"], qt_manager)
+                               stats_path, ["B", "D", "E"], qt_manager)
     
     print(WELCOME_TEXT)
 
     if c_context.stats_manager.err_code == ERR_STATS_CORRUPT:
-        print(STATS_CORRUPT_MSG)
+        print(f"При чтении файла {stats_path} возникла ошибка."+STATS_CORRUPT_MSG)
     if c_context.err_code:
         print(f"При чтении файла {cmd_desc_path} возникла ошибка."+DESC_CORRUPT_MSG)
 
