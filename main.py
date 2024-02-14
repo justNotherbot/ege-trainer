@@ -124,14 +124,18 @@ class StatisticsManager:
                     self.err_code = ERR_STATS_CORRUPT
                     f.close()
                     return
+            elif len(curr_words) == 1:
+                self.last_u_id = curr_words[0]
             else:
                 self.err_code = ERR_STATS_CORRUPT
                 f.close()
                 return
         # DEBUG
-        print(tmp_useronly)
+        #print(tmp_useronly)
         self.stats_by_user = tmp
         self.useronly_by_user = tmp_useronly
+        if self.last_u_id not in self.stats_by_user:
+            self.last_u_id = ""
         f.close()
 
     def save_stats(self):
@@ -146,7 +150,7 @@ class StatisticsManager:
             s = i + " " + main_helpers.list2string(self.stats_by_user[i]) + " " + s_add + "\n"
             f.write(s)
         
-        #f.write(self.u_id)
+        f.write(self.last_u_id)
         f.close()
 
 
@@ -293,15 +297,17 @@ class TaskGenerator:
 class ConsoleContext:
 
     def __init__(self, script_dir, script_name, desc_path, stats_path, task_types, qt_mngr):
-        self.u_id = ""
         self.script_dir = script_dir
         self.script_path = os.path.join(script_dir, script_name)
         self.stats_manager = StatisticsManager(stats_path)
         self.task_types = task_types
         self.task_gen = TaskGenerator(self.script_path, self.stats_manager, task_types)
 
+        self.u_id = self.stats_manager.last_u_id
+        self.task_gen.u_id = self.u_id
+
         self.qt_mngr = qt_mngr
-        self.show_logged_out = True
+        self.show_logged_out = self.u_id == ""
 
         data, n_rows, err = main_helpers.load_cmd_desc(desc_path)
         self.err_code = err
@@ -334,6 +340,7 @@ class ConsoleContext:
                 self.show_logged_out = True
             self.u_id = u_id
             self.task_gen.u_id = u_id
+            self.stats_manager.last_u_id = u_id
             return 0
         return 1
 
