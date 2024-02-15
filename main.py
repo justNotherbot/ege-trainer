@@ -442,12 +442,13 @@ def stats(console_context, args):
         return
     
     curr_u_id = console_context.u_id
-    task_types = console_context.task_types
+    task_types = console_context.task_types.copy()
     stats_by_type = console_context.stats_manager.get_main_user_stats(curr_u_id, 
                                                                       task_types)
     if len(stats_by_type):
+        task_types = sorted(task_types, key=lambda x: stats_by_type[x], reverse=True)
         print("Процент правильно решённых задач по подтипам:")
-        for i in stats_by_type:
+        for i in task_types:
             solved_percent = round(stats_by_type[i][0] * 100)
             n_total = stats_by_type[i][1]
             print(f"{i}: {solved_percent}%. Всего: {n_total}")
