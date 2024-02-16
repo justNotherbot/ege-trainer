@@ -44,7 +44,7 @@ def load_cmd_desc(path, space_char="$"):
 
     f = None
     try:
-        f = open(path, "r")
+        f = open(path, "r", encoding="utf-8")
     except Exception:
         return {}, 0, 1
     

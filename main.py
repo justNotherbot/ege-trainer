@@ -97,7 +97,7 @@ class StatisticsManager:
     def read_stats(self):
         f = None
         try:
-            f = open(self.stats_path, "r")
+            f = open(self.stats_path, "r", encoding="utf-8")
         except FileNotFoundError:
             self.err_code = ERR_STATS_NOT_FOUND
             return
@@ -216,7 +216,6 @@ class TaskGenerator:
             print(self.tasks[i][0])
             # DEBUG
             #print(self.tasks[i][1])
-
 
     def add_user_answer(self, task_num, ans):
         # DEBUG
