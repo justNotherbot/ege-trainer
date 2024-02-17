@@ -29,6 +29,7 @@ if "E" in s:
     curr_dir = os.path.dirname(os.path.realpath(__file__))  # Directory where this .py file is located
     tgt_dir = os.path.join(curr_dir, "expr_data.txt")
     expr_gen = type_e.ExpressionGenerator(tgt_dir, "$")
+
     if expr_gen.err_code:
         exit(expr_gen.err_code)
 

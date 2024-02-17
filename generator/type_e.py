@@ -151,7 +151,6 @@ class ExpressionGenerator:
             self.err_code = ERR_EXPR_FILE_CORRUPT
             f.close()
             return
-        print(self.words)
         f.close()
 
     def read_words_from_file(self, f_lines):
@@ -262,7 +261,6 @@ def get_n_ips_by_condition(ip_str, n_ip_bits, expr):
     n = 0
     net = ip_network(ip_str + "/" + str(32 - n_ip_bits))
     for ip in net:
-        print(ip)
         curr_bits = f"{ip:b}"
         n_zeroes_total, n_zeroes_right, n_ones_total, n_ones_right = get_ip_statistics(curr_bits)
         n_zeroes_left = n_zeroes_total - n_zeroes_right
